@@ -4,7 +4,7 @@
     "Parameters": {
         "OwnerTeamEmail": {
             "Type": "String",
-            "Default": "venkiahn@amazon.com"
+            "Default": "name@domain.com"
         },
         "Bucket": {
             "Type": "String",
