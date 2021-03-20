@@ -1,0 +1,971 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "This AWS CloudFormation template will create a perimeter ingress VPC with supporting resources for a Privatelink attached application VPCs",
+    "Parameters": {
+        "EnvName": {
+            "Description": "(REQUIRED) Enter Environment Type (Dev/QA/Prod)",
+            "Default": "Dev",
+            "Type": "String",
+            "AllowedValues": [
+                "Dev",
+                "QA",
+                "Test",
+                "Prod"
+            ]
+        },
+        "Project": {
+            "Type": "String",
+            "Default": "Cohort2",
+            "Description": "(REQUIRED) Enter the Project Name"
+        },
+        "VPCCIDRBLOCK": {
+            "Default": "10.0.0.0/24",
+            "Type": "String"
+        }
+    },
+    "Mappings": {
+        "ResourceTags": {
+            "all": {
+                "BudgetCentre": "DevOpsAoD",
+                "AppName": "IngressPatternArtifact",
+                "AppId": "Ingress001",
+                "Department": "DevOps AoD",
+                "Environment": "nonprod",
+                "Role": "Central Perimeter",
+                "SupportContract": "Plus",
+                "Tier": "Infrastructure",
+                "OwnerTeam": "AWS ProServe",
+                "OwnerTeamEmail": "venkiahn@amazon.com",
+                "Owner": "Nolan Venkiah"
+            },
+            "EC2": {
+                "HoursOfOperation": "Mon-Fri_8-17",
+                "DataClassification": "Confidential",
+                "ComplianceFramework": "NIST",
+                "Qualys": "Yes"
+            }
+        }
+    },
+    "Outputs": {
+        "VPCId": {
+            "Description": "The VPC Id",
+            "Value": {"Ref": "IngressVPC"}
+        },
+        "IngressSubnet1": {
+            "Description": "Id of Subnet 1",
+            "Value": {"Ref": "VPCIngressSubnet1"}
+        },
+        "IngressSubnet2": {
+            "Description": "Id of Subnet 2",
+            "Value": {"Ref": "VPCIngressSubnet2"}
+        },
+        "IngressSG": {
+            "Description": "Id of the ingress security group",
+            "Value": {"Ref": "IngressSG"}
+        }
+    },
+    "Resources": {
+        "TargetVpcStack" : {
+            "Type" : "AWS::CloudFormation::Stack",
+            "Properties" : {
+                "TemplateURL" : "https://s3.amazonaws.com/devopsartifact/CFN/targetvpc.json",
+                "TimeoutInMinutes" : 60
+            }
+        },
+        "IngressVPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": {"Ref": "VPCCIDRBLOCK"},
+                "EnableDnsHostnames": true,
+                "EnableDnsSupport": true,
+                "InstanceTenancy": "default",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "-",
+                                [
+                                    {
+                                        "Ref": "Project"
+                                    },
+                                    {
+                                        "Ref": "EnvName"
+                                    },
+                                    "Ingress",
+                                    "Vpc",
+                                    "001"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "BudgetCentre",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "BudgetCentre"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppName",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppName"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppId",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppId"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Department",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Department"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Environment"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "SupportContract",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "SupportContract"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeam",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeam"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeamEmail",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeamEmail"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Owner"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "HoursOfOperation",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "HoursOfOperation"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "DataClassification",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "DataClassification"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Qualys",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "Qualys"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "VPCIngressSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/26",
+                "VpcId": {
+                    "Ref": "IngressVPC"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                    0,
+                    {
+                        "Fn::GetAZs": ""
+                    }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": {
+                        "Fn::Join": [
+                            "-",
+                            [
+                                {
+                                    "Ref": "Project"
+                                },
+                                {
+                                    "Ref": "EnvName"
+                                },
+                                "Subnet",
+                                "001"
+                            ]
+                        ]
+                    }
+                },
+                {
+                    "Key": "BudgetCentre",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "BudgetCentre"
+                        ]
+                    }
+                },
+                {
+                    "Key": "AppName",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "AppName"
+                        ]
+                    }
+                },
+                {
+                    "Key": "AppId",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "AppId"
+                        ]
+                    }
+                },
+                {
+                    "Key": "Department",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "Department"
+                        ]
+                    }
+                },
+                {
+                    "Key": "Environment",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "Environment"
+                        ]
+                    }
+                },
+                {
+                    "Key": "SupportContract",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "SupportContract"
+                        ]
+                    }
+                },
+                {
+                    "Key": "OwnerTeam",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "OwnerTeam"
+                        ]
+                    }
+                },
+                {
+                    "Key": "OwnerTeamEmail",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "OwnerTeamEmail"
+                        ]
+                    }
+                },
+                {
+                    "Key": "Owner",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "all",
+                            "Owner"
+                        ]
+                    }
+                },
+                {
+                    "Key": "HoursOfOperation",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "EC2",
+                            "HoursOfOperation"
+                        ]
+                    }
+                },
+                {
+                    "Key": "DataClassification",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "EC2",
+                            "DataClassification"
+                        ]
+                    }
+                },
+                {
+                    "Key": "Qualys",
+                    "Value": {
+                        "Fn::FindInMap": [
+                            "ResourceTags",
+                            "EC2",
+                            "Qualys"
+                        ]
+                    }
+                }
+                ]
+            }
+        },
+        "VPCIngressSubnet1RouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                "Ref": "IngressVPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "-",
+                                [
+                                    {
+                                        "Ref": "Project"
+                                    },
+                                    {
+                                        "Ref": "EnvName"
+                                    },
+                                    "IngressRT",
+                                    "001"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "BudgetCentre",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "BudgetCentre"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppName",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppName"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppId",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppId"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Department",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Department"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Environment"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "SupportContract",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "SupportContract"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeam",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeam"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeamEmail",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeamEmail"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Owner"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "HoursOfOperation",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "HoursOfOperation"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "DataClassification",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "DataClassification"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Qualys",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "Qualys"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "VPCIngressSubnet1RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                "Ref": "VPCIngressSubnet1RouteTable"
+                },
+                "SubnetId": {
+                "Ref": "VPCIngressSubnet1"
+                }
+            }
+        },
+        "VPCIngressSubnet1DefaultRoute": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                "Ref": "VPCIngressSubnet1RouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                "Ref": "VPCIGW"
+                }
+            },
+            "DependsOn": [
+                "VPCGW"
+            ]
+        },
+        "VPCIngressSubnet2": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "CidrBlock": "10.0.0.64/26",
+                "VpcId": {
+                "Ref": "IngressVPC"
+                },
+                "AvailabilityZone": {
+                "Fn::Select": [
+                    1,
+                    {
+                    "Fn::GetAZs": ""
+                    }
+                ]
+                },
+                "MapPublicIpOnLaunch": true,
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "-",
+                                [
+                                    {
+                                        "Ref": "Project"
+                                    },
+                                    {
+                                        "Ref": "EnvName"
+                                    },
+                                    "Subnet",
+                                    "002"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "BudgetCentre",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "BudgetCentre"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppName",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppName"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppId",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppId"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Department",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Department"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Environment"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "SupportContract",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "SupportContract"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeam",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeam"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeamEmail",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeamEmail"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Owner"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "HoursOfOperation",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "HoursOfOperation"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "DataClassification",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "DataClassification"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Qualys",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "Qualys"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "VPCIngressSubnet2RouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                "Ref": "IngressVPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Join": [
+                                "-",
+                                [
+                                    {
+                                        "Ref": "Project"
+                                    },
+                                    {
+                                        "Ref": "EnvName"
+                                    },
+                                    "IngressRT",
+                                    "002"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "BudgetCentre",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "BudgetCentre"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppName",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppName"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppId",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppId"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Department",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Department"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Environment"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "SupportContract",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "SupportContract"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeam",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeam"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeamEmail",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeamEmail"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Owner"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "HoursOfOperation",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "HoursOfOperation"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "DataClassification",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "DataClassification"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Qualys",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "EC2",
+                                "Qualys"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "VPCIngressSubnet2RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                "Ref": "VPCIngressSubnet2RouteTable"
+                },
+                "SubnetId": {
+                "Ref": "VPCIngressSubnet2"
+                }
+            }
+        },
+        "VPCIngressSubnet2DefaultRoute": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                "Ref": "VPCIngressSubnet2RouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                "Ref": "VPCIGW"
+                }
+            },
+            "DependsOn": [
+                "VPCGW"
+            ]
+        },
+        "VPCIGW": {
+        "Type": "AWS::EC2::InternetGateway",
+        "Properties": {
+            "Tags": [
+            {
+                "Key": "Name",
+                "Value": "VPCIGW"
+            }
+            ]
+        }
+        },
+        "VPCGW": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                "Ref": "IngressVPC"
+                },
+                "InternetGatewayId": {
+                "Ref": "VPCIGW"
+                }
+            }
+        },
+        "IngressSG": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow inbound port 80 and 443",
+                "GroupName": "IngressSG",
+                "SecurityGroupEgress": [
+                    {
+                    "CidrIp": "0.0.0.0/0",
+                    "Description": "Allow all outbound traffic by default",
+                    "IpProtocol": "-1"
+                    }
+                ],
+                "SecurityGroupIngress": [
+                    {
+                    "CidrIp": "0.0.0.0/0",
+                    "Description": "HTTP from anywhere",
+                    "FromPort": 80,
+                    "IpProtocol": "tcp",
+                    "ToPort": 80
+                    },
+                    {
+                    "CidrIp": "0.0.0.0/0",
+                    "Description": "HTTPS from anywhere",
+                    "FromPort": 443,
+                    "IpProtocol": "tcp",
+                    "ToPort": 443
+                    },
+                    {
+                    "CidrIp": {
+                        "Fn::GetAtt": [
+                        "IngressVPC",
+                        "CidrBlock"
+                        ]
+                    },
+                    "Description": {
+                        "Fn::Join": [
+                        "",
+                        [
+                            "from ",
+                            {
+                            "Fn::GetAtt": [
+                                "IngressVPC",
+                                "CidrBlock"
+                            ]
+                            },
+                            ":80"
+                        ]
+                        ]
+                    },
+                    "FromPort": 80,
+                    "IpProtocol": "tcp",
+                    "ToPort": 80
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "IngressVPC"
+                }
+            }
+        }
+    }
+}

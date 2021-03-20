@@ -1,0 +1,300 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "This AWS CloudFormation template will create a perimeter ingress VPC with supporting resources for a Privatelink attached application VPCs",
+    "Mappings": {
+        "ResourceTags": {
+            "all": {
+                "BudgetCentre": "DevOps",
+                "AppName": "IngressPatternArtifact",
+                "AppId": "Ingress001",
+                "Department": "DevOps",
+                "Environment": "nonprod",
+                "Role": "Central Perimeter",
+                "SupportContract": "Plus",
+                "Tier": "Infrastructure",
+                "OwnerTeam": "AWS ProServe",
+                "OwnerTeamEmail": "youremail@domain.com",
+                "Owner": "Name Surname",
+                "ComplianceFramework": "NIST",
+                "Version": "1.0"
+            },
+            "EC2": {
+                "HoursOfOperation": "Mon-Fri_8-17",
+                "DataClassification": "Confidential",
+                "Qualys": "Yes"
+            }
+        }
+    },
+    "Resources": {
+        "IngressVpcStack" : {
+            "Type" : "AWS::CloudFormation::Stack",
+            "Properties" : {
+                "TemplateURL" : "https://s3.amazonaws.com/devopsartifact/CFN/ingressvpc.json",
+                "TimeoutInMinutes" : 60
+            }
+        },
+        "ALB": {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": {
+                "LoadBalancerAttributes": [
+                    {
+                    "Key": "deletion_protection.enabled",
+                    "Value": "false"
+                    }
+                ],
+                "Name": "PublicALB",
+                "Scheme": "internet-facing",
+                "SecurityGroups": [
+                    { "Fn::GetAtt" : ["IngressVpcStack", "Outputs.IngressSG"]}
+                ],
+                "Subnets": [
+                    { "Fn::GetAtt" : ["IngressVpcStack", "Outputs.IngressSubnet1"]},
+                    { "Fn::GetAtt" : ["IngressVpcStack", "Outputs.IngressSubnet2"]}
+                ],
+                "Type": "application"
+            }
+        },
+        "ALBListener": {
+            "Type": "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties": {
+                "DefaultActions": [
+                    {
+                    "TargetGroupArn": {
+                        "Ref": "TargetGroup"
+                    },
+                    "Type": "forward"
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Ref": "ALB"
+                },
+                "Port": 80,
+                "Protocol": "HTTP"
+                }
+        },
+        "TargetGroup": {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties": {
+                "HealthCheckIntervalSeconds": 15,
+                "HealthCheckPath": "/",
+                "HealthCheckProtocol": "HTTP",
+                "HealthCheckTimeoutSeconds": 5,
+                "HealthyThresholdCount": 2,
+                "Matcher": {
+                    "HttpCode": "403"
+                },
+                "Port": 80,
+                "Protocol": "HTTP",
+                "TargetType": "ip",
+                "UnhealthyThresholdCount": 2,
+                "VpcId": { "Fn::GetAtt" : [ "IngressVpcStack", "Outputs.VPCId" ] }
+            }
+        },
+        "WEBACL": {
+            "Type": "AWS::WAFv2::WebACL",
+            "Properties": {
+                "Name": "WEBACL",
+                "Scope": "REGIONAL",
+                "Tags": [
+                    {
+                        "Key": "BudgetCentre",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "BudgetCentre"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Department",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Department"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Owner"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeam",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeam"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "OwnerTeamEmail",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "OwnerTeamEmail"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Tier",
+                        "Value": "WAF"
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Environment"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "ComplianceFramework",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "ComplianceFramework"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "Version",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "Version"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppId",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppId"
+                            ]
+                        }
+                    },
+                    {
+                        "Key": "AppName",
+                        "Value": {
+                            "Fn::FindInMap": [
+                                "ResourceTags",
+                                "all",
+                                "AppName"
+                            ]
+                        }
+                    }
+                ],
+                "DefaultAction": {
+                    "Allow": {}
+                },
+                "VisibilityConfig": {
+                    "SampledRequestsEnabled": true,
+                    "CloudWatchMetricsEnabled": true,
+                    "MetricName": "WEBACLMetric"
+                },
+                "Rules": [
+                    {
+                        "Name": "RuleWithAWSManagedRulesAdmin",
+                        "Priority": 3,
+                        "OverrideAction": {
+                            "Count": {}
+                        },
+                        "VisibilityConfig": {
+                            "SampledRequestsEnabled": true,
+                            "CloudWatchMetricsEnabled": true,
+                            "MetricName": "RuleWithAWSManagedRulesAdminMetric"
+                        },
+                        "Statement": {
+                            "ManagedRuleGroupStatement": {
+                                "VendorName": "AWS",
+                                "Name": "AWSManagedRulesAdminProtectionRuleSet",
+                                "ExcludedRules": []
+                            }
+                        }
+                    },
+                    {
+                        "Name": "AWSManagedRulesCommonRuleSet",
+                        "Priority": 0,
+                        "OverrideAction": {
+                            "Count": {}
+                        },
+                        "VisibilityConfig": {
+                            "SampledRequestsEnabled": true,
+                            "CloudWatchMetricsEnabled": true,
+                            "MetricName": "RuleWithAWSManagedRulesCommonRuleSetInputMetric"
+                        },
+                        "Statement": {
+                            "ManagedRuleGroupStatement": {
+                                "VendorName": "AWS",
+                                "Name": "AWSManagedRulesCommonRuleSet",
+                                "ExcludedRules": []
+                            }
+                        }
+                    },
+                    {
+                        "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+                        "Priority": 2,
+                        "OverrideAction": {
+                            "Count": {}
+                        },
+                        "VisibilityConfig": {
+                            "SampledRequestsEnabled": true,
+                            "CloudWatchMetricsEnabled": true,
+                            "MetricName": "RuleWithAWSManagedRulesAmazonIpReputationList"
+                        },
+                        "Statement": {
+                            "ManagedRuleGroupStatement": {
+                                "VendorName": "AWS",
+                                "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+                                "ExcludedRules": []
+                            }
+                        }
+                    },
+                    {
+                        "Name": "AWSManagedRulesAmazonIpReputationList",
+                        "Priority": 1,
+                        "OverrideAction": {
+                            "Count": {}
+                        },
+                        "VisibilityConfig": {
+                            "SampledRequestsEnabled": true,
+                            "CloudWatchMetricsEnabled": true,
+                            "MetricName": "RuleWithAWSManagedRulesAmazonIpReputationList"
+                        },
+                        "Statement": {
+                            "ManagedRuleGroupStatement": {
+                                "VendorName": "AWS",
+                                "Name": "AWSManagedRulesAmazonIpReputationList",
+                                "ExcludedRules": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "WEBACLAssociation": {
+            "Type": "AWS::WAFv2::WebACLAssociation",
+            "Properties": {
+                "WebACLArn": {"Fn::GetAtt" : [ "WEBACL" , "Arn" ]},
+                "ResourceArn": { "Ref": "ALB" }
+            }
+        }
+    }
+}
